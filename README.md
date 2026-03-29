@@ -192,7 +192,7 @@ erDiagram
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
 | **Backend** | PHP 8.x | Server-side logic, authentication, quiz engine |
-| **Database** | MySQL / MariaDB | Data persistence (via PDO with prepared statements) |
+| **Database** | MySQL  | Data persistence (via PDO with prepared statements) |
 | **Frontend** | HTML5 + CSS3 | Semantic markup & modern styling |
 | **Styling** | Custom CSS | Glassmorphism, gradients, animations, responsive design |
 | **Fonts** | Google Fonts (Poppins) | Clean, modern typography |
