@@ -1,6 +1,6 @@
 <?php
 require 'connexion.php';
-session_start();
+// Session started in connexion.php
 
 if (!isset($_SESSION['user'])) {
     header("Location: index.php");
@@ -33,6 +33,10 @@ $subjectId = null;
 
 // VÉRIFIER D'ABORD LA SOUMISSION DU FORMULAIRE
 if (isset($_POST['submit'])) {
+    // Validate CSRF token
+    if (!validateCsrfToken()) {
+        die("Invalid request.");
+    }
     $submitted = true;
     
     // Récupérer le subjectId depuis POST ou GET
@@ -86,9 +90,9 @@ if (isset($_POST['submit'])) {
         
         $examDate = date('Y-m-d'); 
 
-        // Préparer et exécuter la requête d'insertion
-        $stmt = $pdo->prepare("INSERT INTO scores (subjectId, note, examDate) VALUES (?, ?, ?)");
-        $stmt->execute([$subjectId, $note, $examDate]);
+        // Préparer et exécuter la requête d'insertion (linked to user)
+        $stmt = $pdo->prepare("INSERT INTO scores (subjectId, userId, note, examDate) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$subjectId, $userInfo->userId, $note, $examDate]);
     }
 } 
 // SINON, CHARGER NORMALEMENT LE QUIZ
@@ -125,6 +129,7 @@ elseif (isset($_GET['subjectId'])) {
             <div class="user-info-header">
                 <i class="fas fa-user-circle"></i>
                 <span>Welcome, <?= htmlspecialchars($_SESSION['user']) ?></span>
+                <a href="logout.php" class="logout-btn" title="Logout"><i class="fas fa-sign-out-alt"></i></a>
             </div>
         </header>
 
@@ -166,6 +171,7 @@ elseif (isset($_GET['subjectId'])) {
             <div class="quiz-container">
                 <!-- FORMULAIRE AVEC CHAMP CACHÉ POUR subjectId -->
                 <form method="post" action="quiz.php">
+                    <?php echo csrfInputField(); ?>
                     <input type="hidden" name="subjectId" value="<?= $subjectId ?>">
                     
                     <?php
