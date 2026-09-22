@@ -3,9 +3,9 @@
 <head>
     <?php require __DIR__ . '/../layouts/base.php'; ?>
     <title>Quiz Academy</title>
-    <link rel="stylesheet" href="public/css/quiz.css">
+    <link rel="stylesheet" href="public/css/quiz.css?v=<?= filemtime(__DIR__ . '/../../public/css/quiz.css') ?>">
 </head>
-<body>
+<body class="<?= $submitted ? 'quiz-submitted' : '' ?>">
     <div class="container">
         <header>
             <div class="logo">
@@ -48,7 +48,7 @@
             <div class="subject-buttons-wrapper">
                 <?php foreach ($subjects as $subject): ?>
                     <a href="index.php?action=quiz&subjectId=<?= $subject->subjectId ?>">
-                        <button type="button" class="subject-btn">
+                        <button type="button" class="subject-btn <?= ($subjectId == $subject->subjectId) ? 'active-subject' : '' ?>">
                             <i class="fas fa-book"></i> <?= htmlspecialchars($subject->subjectName) ?>
                         </button>
                     </a>
@@ -57,68 +57,111 @@
         </div>
 
         <?php if (!empty($questions) && $subjectId): ?>
+            <?php
+            // Group questions by questionId
+            $groupedQuestions = [];
+            foreach ($questions as $q) {
+                if (!isset($groupedQuestions[$q->questionId])) {
+                    $groupedQuestions[$q->questionId] = [
+                        'name' => $q->questionName,
+                        'answers' => []
+                    ];
+                }
+                $groupedQuestions[$q->questionId]['answers'][] = $q;
+            }
+            $totalQuestionsCount = count($groupedQuestions);
+            ?>
+
             <div class="quiz-container">
-                <form method="post" action="index.php?action=quiz">
+                <!-- Top Progress Bar & Indicators -->
+                <div class="quiz-progress-section">
+                    <div class="progress-header">
+                        <div class="progress-info">
+                            <span id="current-step-num">Question 1</span> of <span><?= $totalQuestionsCount ?></span>
+                        </div>
+                        <button type="button" id="toggle-view-btn" class="toggle-view-btn">
+                            <i class="fas fa-list-ul"></i> View All Questions
+                        </button>
+                    </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                    </div>
+                    <div class="step-pills" id="step-pills">
+                        <?php for ($i = 1; $i <= $totalQuestionsCount; $i++): ?>
+                            <button type="button" class="step-pill <?= $i === 1 ? 'active' : '' ?>" data-step="<?= $i ?>"><?= $i ?></button>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+
+                <form method="post" action="index.php?action=quiz" id="quiz-form">
                     <?php echo csrfInputField(); ?>
                     <input type="hidden" name="subjectId" value="<?= $subjectId ?>">
 
                     <?php
-                    $currentQuestionId = null;
-                    $questionIds = array_unique(array_column($questions, 'questionId'));
-
-                    foreach ($questions as $question):
-                        if ($currentQuestionId !== $question->questionId):
-                            if ($currentQuestionId !== null):
-                                echo '</div></div>';
-                            endif;
-                            $currentQuestionId = $question->questionId;
-                            $questionNumber = array_search($question->questionId, $questionIds) + 1;
+                    $stepIndex = 1;
+                    foreach ($groupedQuestions as $qId => $data):
                     ?>
-                        <div class="question-card">
+                        <div class="question-card <?= $stepIndex === 1 ? 'active' : '' ?>" data-step="<?= $stepIndex ?>" data-question-id="<?= $qId ?>">
                             <div class="question-text">
-                                <span class="question-number">Question <?= $questionNumber ?>:</span>
-                                <?= htmlspecialchars($question->questionName) ?>
+                                <span class="question-number">Question <?= $stepIndex ?>:</span>
+                                <?= htmlspecialchars($data['name']) ?>
                             </div>
                             <div class="answer-options">
-                    <?php endif;
+                                <?php foreach ($data['answers'] as $question): 
+                                    $answerId        = $question->answerId;
+                                    $isSelected      = isset($answersStatus[$qId]) && $answersStatus[$qId]['selected'] == $answerId;
+                                    $isCorrectAnswer = isset($answersStatus[$qId]) && $answersStatus[$qId]['correct'] == $answerId;
 
-                    $questionId      = $question->questionId;
-                    $answerId        = $question->answerId;
-                    $isSelected      = isset($answersStatus[$questionId]) && $answersStatus[$questionId]['selected'] == $answerId;
-                    $isCorrectAnswer = isset($answersStatus[$questionId]) && $answersStatus[$questionId]['correct'] == $answerId;
-
-                    $class = '';
-                    if ($submitted) {
-                        if ($isCorrectAnswer) {
-                            $class = 'correct';
-                        } elseif ($isSelected && !$isCorrectAnswer) {
-                            $class = 'incorrect';
-                        }
-                    }
-                    ?>
-                        <div class="answer-option <?= $class ?>">
-                            <label>
-                                <input type="radio" name="q<?= $questionId ?>" value="<?= $answerId ?>"
-                                    <?= $isSelected ? 'checked' : '' ?>
-                                    <?= $submitted  ? 'disabled' : '' ?> required>
-                                <?= htmlspecialchars($question->answerName) ?>
-                                <?php if ($submitted): ?>
-                                    <?php if ($isCorrectAnswer): ?>
-                                        <i class="fas fa-check-circle correct-icon"></i>
-                                    <?php elseif ($isSelected && !$isCorrectAnswer): ?>
-                                        <i class="fas fa-times-circle incorrect-icon"></i>
-                                    <?php endif; ?>
-                                <?php endif; ?>
-                            </label>
+                                    $class = '';
+                                    if ($submitted) {
+                                        if ($isCorrectAnswer) {
+                                            $class = 'correct';
+                                        } elseif ($isSelected && !$isCorrectAnswer) {
+                                            $class = 'incorrect';
+                                        }
+                                    }
+                                ?>
+                                    <div class="answer-option <?= $class ?>">
+                                        <label>
+                                            <input type="radio" name="q<?= $qId ?>" value="<?= $answerId ?>"
+                                                <?= $isSelected ? 'checked' : '' ?>
+                                                <?= $submitted  ? 'disabled' : '' ?> required>
+                                            <?= htmlspecialchars($question->answerName) ?>
+                                            <?php if ($submitted): ?>
+                                                <?php if ($isCorrectAnswer): ?>
+                                                    <i class="fas fa-check-circle correct-icon"></i>
+                                                <?php elseif ($isSelected && !$isCorrectAnswer): ?>
+                                                    <i class="fas fa-times-circle incorrect-icon"></i>
+                                                <?php endif; ?>
+                                            <?php endif; ?>
+                                        </label>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
-                    <?php endforeach; ?>
-                    <?php if (!empty($questions)) echo '</div></div>'; ?>
+                    <?php 
+                        $stepIndex++;
+                    endforeach; 
+                    ?>
 
-                    <?php if (!$submitted): ?>
-                        <button type="submit" name="submit" class="submit-btn">
-                            Submit Answers <i class="fas fa-paper-plane"></i>
+                    <!-- Bottom Navigation Controls -->
+                    <div class="quiz-nav-controls">
+                        <button type="button" id="btn-prev" class="nav-btn prev-btn">
+                            <i class="fas fa-arrow-left"></i> Previous
                         </button>
-                    <?php else: ?>
+
+                        <button type="button" id="btn-next" class="nav-btn next-btn">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+
+                        <?php if (!$submitted): ?>
+                            <button type="submit" name="submit" id="btn-submit" class="submit-btn" style="display: none;">
+                                Submit Answers <i class="fas fa-paper-plane"></i>
+                            </button>
+                        <?php endif; ?>
+                    </div>
+
+                    <?php if ($submitted): ?>
                         <div class="quiz-completed-message">
                             <p>Quiz Completed! Review your answers above.</p>
                             <a href="index.php?action=quiz" class="new-quiz-btn">Start New Quiz</a>
@@ -128,5 +171,7 @@
             </div>
         <?php endif; ?>
     </div>
+
+    <script src="public/js/quiz.js?v=<?= filemtime(__DIR__ . '/../../public/js/quiz.js') ?>"></script>
 </body>
 </html>

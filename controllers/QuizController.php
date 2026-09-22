@@ -81,13 +81,15 @@ class QuizController
                 }
 
                 // Save score to DB
-                $note     = $totalQuestions > 0 ? ($score / $totalQuestions) * 10 : 0.00;
-                $examDate = date('Y-m-d');
+                if ($userInfo && isset($userInfo->userId)) {
+                    $note     = $totalQuestions > 0 ? ($score / $totalQuestions) * 10 : 0.00;
+                    $examDate = date('Y-m-d');
 
-                $stmt = $this->pdo->prepare(
-                    "INSERT INTO scores (subjectId, userId, note, examDate) VALUES (?, ?, ?, ?)"
-                );
-                $stmt->execute([$subjectId, $userInfo->userId, $note, $examDate]);
+                    $stmt = $this->pdo->prepare(
+                        "INSERT INTO scores (subjectId, userId, note, examDate) VALUES (?, ?, ?, ?)"
+                    );
+                    $stmt->execute([$subjectId, $userInfo->userId, $note, $examDate]);
+                }
             }
 
         // ── Load quiz on GET ──────────────────────────────────
