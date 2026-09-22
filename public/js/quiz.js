@@ -145,10 +145,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Radio change event -> update answered pill state & clear warning
+    // Radio change event -> update answered pill state & highlight selected option card
     document.querySelectorAll('.question-card input[type="radio"]').forEach(radio => {
         radio.addEventListener('change', function () {
             const card = this.closest('.question-card');
+            if (card) {
+                card.querySelectorAll('.answer-option').forEach(opt => opt.classList.remove('selected-option'));
+                const parentOpt = this.closest('.answer-option');
+                if (parentOpt) parentOpt.classList.add('selected-option');
+            }
             clearWarning(card);
             updateAnsweredStatus();
         });

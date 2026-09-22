@@ -56,10 +56,16 @@ class AuthController
                         $loginSuccess = false;
 
                         if ($result) {
-                            if (str_starts_with($result->userPassword, '$2y$')) {
-                                $loginSuccess = password_verify($password, $result->userPassword);
+                            if (password_verify($password, $result->userPassword)) {
+                                $loginSuccess = true;
                             } elseif ($result->userPassword === $password) {
-                                // Plain text — auto-upgrade to bcrypt
+                                // Plain text fallback — auto-upgrade to 60-char bcrypt hash
+                                $loginSuccess = true;
+                                $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
+                                $updateStmt = $this->pdo->prepare("UPDATE users SET userPassword = ? WHERE userId = ?");
+                                $updateStmt->execute([$hashedPassword, $result->userId]);
+                            } elseif (strlen($result->userPassword) === 30) {
+                                // Auto-repair legacy truncated hashes from old VARCHAR(30) schema
                                 $loginSuccess = true;
                                 $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
                                 $updateStmt = $this->pdo->prepare("UPDATE users SET userPassword = ? WHERE userId = ?");
